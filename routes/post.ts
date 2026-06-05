@@ -17,7 +17,9 @@ router.post(
       });
 
       const newPost = await post.save();
-      res.status(201).json(newPost);
+      res
+        .status(201)
+        .json({ status: "post created successfully", data: newPost });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }
@@ -49,9 +51,9 @@ router.get(
       if (!post.likes.includes(req.user._id)) {
         post.likes.push(req.user._id);
         await post.save();
-        res.status(200).json("post likes successfully");
+        res.status(200).json({ message: "post likes successfully" });
       } else {
-        res.status(404).json("you already liked the post");
+        res.status(404).json({ message: "you already liked the post" });
       }
     } catch (err: any) {
       res.status(400).json({ message: err.message });
@@ -70,7 +72,7 @@ router.post(
 
       const comment = {
         user: req.user._id,
-        text: req.body.text,
+        content: req.body.content,
       };
 
       post.comments.push(comment);

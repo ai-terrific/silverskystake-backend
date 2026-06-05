@@ -15,15 +15,12 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   if (!token) {
     return res.sendStatus(401).json({ error: "no token found" });
   }
-  jwt.verify(
+  const decoded = jwt.verify(
     token,
     process.env.ACCESS_TOKEN_SECRET || "harrysocialdev",
-    (err, user) => {
-      if (err) return res.sendStatus(403);
-      req.user = user;
-      next();
-    },
   );
+  req.user = decoded;
+  return next();
 };
 
 export default authenticateToken;
