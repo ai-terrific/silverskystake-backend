@@ -1,8 +1,17 @@
-import mongoose from "mongoose";
+import { Schema, model, Document } from "mongoose";
 
-const { Schema, model } = mongoose;
+export interface IPost extends Document {
+  user: Schema.Types.ObjectId;
+  content: string;
+  likes: Schema.Types.ObjectId[];
+  comments: {
+    user: Schema.Types.ObjectId;
+    content: string;
+    createdAt?: Date;
+  }[];
+}
 
-const postSchema = new Schema(
+const postSchema = new Schema<IPost>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -41,4 +50,4 @@ const postSchema = new Schema(
   },
 );
 
-export default model("Post", postSchema);
+export default model<IPost>("Post", postSchema);

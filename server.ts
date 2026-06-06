@@ -12,7 +12,7 @@ import postRoutes from "./routes/post";
 dotenv.config();
 
 mongoose
-  .connect(process.env.MONGO_URI || "")
+  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/socialApp")
   .then(() => {
     console.log(chalk.bgGreen("Connected to mongoDB..."));
   })

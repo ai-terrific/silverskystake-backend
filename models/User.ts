@@ -1,8 +1,14 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Types, model, Document } from "mongoose";
 
-const { Schema, model } = mongoose;
+export interface IUser extends Document {
+  username: string;
+  email: string;
+  password: string;
+  followers: Types.ObjectId[];
+  following: Types.ObjectId[];
+}
 
-const userSchema = new Schema(
+const userSchema = new Schema<IUser>(
   {
     username: {
       type: String,
