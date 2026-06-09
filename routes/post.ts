@@ -27,33 +27,65 @@ router.post(
 );
 
 //get posts
-router.get("/", authenticateToken, async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const posts = await Post.find()
       .populate("user", ["username", "email"])
-      .populate("likes", "username")
-      .populate("comments.user", "username");
+      .populate("upVotes", "username")
+      .populate("downVotes", "username")
+      .populate("comments.user", "username")
+      .sort({ createdAt: -1 });
     res.status(201).json(posts);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
 });
 
-//like post
+//upvote post
 router.get(
-  "/:postId/like",
+  "/:postId/upvote",
   authenticateToken,
   async (req: Request, res: Response) => {
     try {
       const post = await Post.findById(req.params.postId);
       if (!post) return res.status(404).json({ message: "post not found" });
-
-      if (!post.likes.includes(req.user._id)) {
-        post.likes.push(req.user._id);
+      if (post.user.toString() === req.user._id)
+        return res.status(404).json({ message: "cannot vote yourself" });
+      if (
+        !post.upVotes.includes(req.user._id) &&
+        !post.downVotes.includes(req.user._id)
+      ) {
+        post.upVotes.push(req.user._id);
         await post.save();
-        res.status(200).json({ message: "post likes successfully" });
+        res.status(200).json({ message: "Upvoted successfully" });
       } else {
-        res.status(404).json({ message: "you already liked the post" });
+        res.status(404).json({ message: "You've already estimated the post" });
+      }
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  },
+);
+
+//downvote post
+router.get(
+  "/:postId/downvote",
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const post = await Post.findById(req.params.postId);
+      if (!post) return res.status(404).json({ message: "post not found" });
+      if (post.user.toString() === req.user._id)
+        return res.status(404).json({ message: "cannot downvote yourself" });
+      if (
+        !post.upVotes.includes(req.user._id) &&
+        !post.downVotes.includes(req.user._id)
+      ) {
+        post.downVotes.push(req.user._id);
+        await post.save();
+        res.status(200).json({ message: "Downvoted successfully" });
+      } else {
+        res.status(404).json({ message: "You've already estimated the post" });
       }
     } catch (err: any) {
       res.status(400).json({ message: err.message });

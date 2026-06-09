@@ -3,11 +3,13 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import mongoose from "mongoose";
 import http from "http";
+import morgan from "morgan";
 import dotenv from "dotenv";
 import chalk from "chalk";
 
 import userRoutes from "./routes/user";
 import postRoutes from "./routes/post";
+import { PORT } from "./config/key";
 
 dotenv.config();
 
@@ -20,23 +22,16 @@ mongoose
 
 const app = express();
 
-app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors({ origin: true, credentials: true }));
+app.use(morgan("dev"));
 
 app.use("/api/user", userRoutes);
 app.use("/api/post", postRoutes);
 
-const port = process.env.PORT || 8001;
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-
-app.use(cors());
-
 let server = http.createServer(app);
 
-server.listen(port, () =>
-  console.log(chalk.yellow(`Server is running on port ${port}`)),
+server.listen(PORT, () =>
+  console.log(chalk.yellow(`Server is running on port ${PORT}`)),
 );

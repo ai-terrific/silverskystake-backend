@@ -3,7 +3,8 @@ import { Schema, model, Document } from "mongoose";
 export interface IPost extends Document {
   user: Schema.Types.ObjectId;
   content: string;
-  likes: Schema.Types.ObjectId[];
+  upVotes: Schema.Types.ObjectId[];
+  downVotes: Schema.Types.ObjectId[];
   comments: {
     user: Schema.Types.ObjectId;
     content: string;
@@ -22,7 +23,13 @@ const postSchema = new Schema<IPost>(
       type: String,
       required: true,
     },
-    likes: [
+    upVotes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    downVotes: [
       {
         type: Schema.Types.ObjectId,
         ref: "User",
