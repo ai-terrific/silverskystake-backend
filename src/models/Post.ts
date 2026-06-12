@@ -2,6 +2,7 @@ import { Schema, model, Document } from "mongoose";
 
 export interface IPost extends Document {
   user: Schema.Types.ObjectId;
+  title: string;
   content: string;
   upVotes: Schema.Types.ObjectId[];
   downVotes: Schema.Types.ObjectId[];
@@ -17,6 +18,10 @@ const postSchema = new Schema<IPost>(
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+    },
+    title: {
+      type: String,
       required: true,
     },
     content: {

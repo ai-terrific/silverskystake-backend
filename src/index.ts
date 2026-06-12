@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -9,12 +9,13 @@ import chalk from "chalk";
 
 import userRoutes from "./routes/user";
 import postRoutes from "./routes/post";
-import { PORT } from "./config/key";
+import { MONGO_URI, PORT } from "./config";
+import { errorHandler } from "./middlewares/errorHandler";
 
 dotenv.config();
 
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/socialApp")
+  .connect(MONGO_URI)
   .then(() => {
     console.log(chalk.bgGreen("Connected to mongoDB..."));
   })
@@ -27,10 +28,12 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(morgan("dev"));
 
+app.use(errorHandler);
+
 app.use("/api/user", userRoutes);
 app.use("/api/post", postRoutes);
 
-let server = http.createServer(app);
+const server = http.createServer(app);
 
 server.listen(PORT, () =>
   console.log(chalk.yellow(`Server is running on port ${PORT}`)),

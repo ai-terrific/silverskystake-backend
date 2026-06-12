@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import Post from "../models/Post";
 
 import authenticateToken from "../middlewares/auth";
@@ -9,10 +9,11 @@ const router = express.Router();
 router.post(
   "/create",
   authenticateToken,
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const post = new Post({
         user: req.user._id,
+        title: req.body.title,
         content: req.body.content,
       });
 
@@ -20,8 +21,8 @@ router.post(
       res
         .status(201)
         .json({ status: "post created successfully", data: newPost });
-    } catch (err: any) {
-      res.status(400).json({ message: err.message });
+    } catch (err) {
+      next(err);
     }
   },
 );
@@ -34,7 +35,8 @@ router.get("/", async (req: Request, res: Response) => {
       .populate("upVotes", "username")
       .populate("downVotes", "username")
       .populate("comments.user", "username")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .sort({ "comments.createdAt": 1 });
     res.status(201).json(posts);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

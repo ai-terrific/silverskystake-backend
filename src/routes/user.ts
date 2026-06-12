@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User";
 
 import authenticateToken from "../middlewares/auth";
-import { JWT_SECRET } from "../config/key";
+import { JWT_SECRET } from "../config";
 
 const router = express.Router();
 
@@ -59,7 +59,7 @@ router.get(
       "followers following",
       ["_id", "username", "email"],
     );
-    res.status(200).json(user);
+    res.status(200).json({ user });
   },
 );
 
