@@ -1,19 +1,41 @@
 import { Schema, Types, model, Document } from "mongoose";
 
 export interface IUser extends Document {
+  firstName: string;
+  lastName?: string;
   username: string;
   email: string;
   password: string;
-  followers: Types.ObjectId[];
-  following: Types.ObjectId[];
+  ignoredUsers: { user: Schema.Types.ObjectId; createdAt?: Date }[];
+  country: String;
+  birthPlace: String;
+  birthday: String;
+  address: String;
+  city: String;
+  postalCode: Number;
+  industry: String;
+  occupation: String;
+  experience: String;
+  avatar: String;
+  identification: {
+    front: String;
+    back: String;
+  };
 }
 
 const userSchema = new Schema<IUser>(
   {
-    username: {
+    firstName: {
       type: String,
       required: true,
       unique: true,
+    },
+    lastName: {
+      type: String,
+    },
+    username: {
+      type: String,
+      required: true,
     },
     email: {
       type: String,
@@ -24,18 +46,32 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
     },
-    followers: [
+    ignoredUsers: [
       {
-        type: Schema.Types.ObjectId,
-        ref: "User",
+        user: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now(),
+        },
       },
     ],
-    following: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    country: String,
+    birthPlace: String,
+    birthday: String,
+    address: String,
+    city: String,
+    postalCode: Number,
+    industry: String,
+    occupation: String,
+    experience: String,
+    avatar: String,
+    identification: {
+      front: String,
+      back: String,
+    },
   },
   {
     timestamps: true,

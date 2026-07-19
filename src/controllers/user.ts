@@ -1,0 +1,198 @@
+import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import User from "../models/User";
+import { JWT_SECRET } from "../config";
+
+//register user
+export const registerUser = async (req: Request, res: Response) => {
+  try {
+    const { username, email, password, confirmPassword } = req.body;
+    if (password !== confirmPassword)
+      return res.status(400).json({ message: "Password not match" });
+
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    const wordsInName = username.split(" ");
+    let firstName = wordsInName[0];
+    let lastName = "";
+    if (wordsInName.length) lastName = wordsInName[wordsInName.length - 1];
+
+    const user = new User({
+      firstName,
+      lastName,
+      username,
+      email,
+      password: hashedPassword,
+    });
+    const newUser = await user.save();
+    res
+      .status(201)
+      .json({ message: "User registered successfully", user: newUser });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//login user by email or password
+export const loginUser = async (req: Request, res: Response) => {
+  const user = await User.findOne({
+    $or: [{ email: req.body.email }, { username: req.body.email }],
+  });
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const isMatch = await bcrypt.compare(req.body.password, user.password);
+  if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+  const token = jwt.sign({ _id: user._id }, JWT_SECRET);
+
+  res.json({
+    message: "Login successfully",
+    token,
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+    },
+  });
+};
+
+//get profile
+export const getProfile = async (req: Request, res: Response) => {
+  const user = await User.findById(req.user._id, "-password");
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  res.json(user);
+};
+
+//get profile
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        ...req.body,
+        avatar: req.file?.filename,
+      },
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User information updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//verify profile
+export const verifyProfile = async (req: Request, res: Response) => {
+  try {
+    const { firstName, lastName, email, username } = req.body;
+    const user = await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        ...req.body,
+      },
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User information updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//ignore user
+export const ignoreUser = async (req: Request, res: Response) => {
+  try {
+    const { ignoredUser } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    user.ignoredUsers.push({ user: ignoredUser });
+
+    await user.save();
+
+    res.json({ message: "User ignored" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//get ignored users
+export const getIgnoreUsers = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id).populate(
+      "ignoredUsers.user",
+      "username",
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user.ignoredUsers);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//remove ignored user
+export const removeIgnoredUser = async (req: Request, res: Response) => {
+  try {
+    const { ignoredUser } = req.params;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.ignoredUsers = [
+      ...user.ignoredUsers.filter(
+        (item) => item.user.toString() !== ignoredUser,
+      ),
+    ];
+    await user.save();
+    res.json({ message: "User accepted" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//confirm profile
+export const confirmDetails = async (req: Request, res: Response) => {
+  try {
+    let user = await User.findById(req.user._id);
+
+    user = { ...user, ...req.body };
+
+    res
+      .status(201)
+      .json({ message: "User registered successfully", user: user });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//upload identification
+export const uploadIdentification = async (req: Request, res: Response) => {
+  try {
+    const files = req.files as {
+      front?: Express.Multer.File[];
+      back?: Express.Multer.File[];
+    };
+    const user = await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        identification: {
+          front: files.front?.[0].filename,
+          back: files.back?.[0].filename,
+        },
+      },
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User information updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//get identifications
+export const getIdentification = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id, "identificaions");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user.ignoredUsers);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};

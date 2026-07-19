@@ -8,7 +8,8 @@ import dotenv from "dotenv";
 import chalk from "chalk";
 
 import userRoutes from "./routes/user";
-import postRoutes from "./routes/post";
+import sessionRoutes from "./routes/session";
+import offerRoutes from "./routes/offer";
 import { MONGO_URI, PORT } from "./config";
 import { errorHandler } from "./middlewares/errorHandler";
 
@@ -31,7 +32,10 @@ app.use(morgan("dev"));
 app.use(errorHandler);
 
 app.use("/api/user", userRoutes);
-app.use("/api/post", postRoutes);
+app.use("/api/session", sessionRoutes);
+app.use("/api/offer", offerRoutes);
+
+app.use("/uploads", express.static("uploads"));
 
 const server = http.createServer(app);
 

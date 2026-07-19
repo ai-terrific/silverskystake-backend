@@ -17,6 +17,7 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
     return res.status(401).json({ error: "no token found" });
   }
   const decoded = jwt.verify(token, JWT_SECRET);
+  console.log(decoded);
   req.user = decoded;
   return next();
 };
