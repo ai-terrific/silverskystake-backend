@@ -1,4 +1,4 @@
-import { Schema, Types, model, Document } from "mongoose";
+import { Schema, Types, model, Document } from 'mongoose';
 
 export interface IUser extends Document {
   firstName: string;
@@ -21,6 +21,8 @@ export interface IUser extends Document {
     front: String;
     back: String;
   };
+  proofAddress: string;
+  fund: string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -50,7 +52,7 @@ const userSchema = new Schema<IUser>(
       {
         user: {
           type: Schema.Types.ObjectId,
-          ref: "User",
+          ref: 'User',
         },
         createdAt: {
           type: Date,
@@ -72,10 +74,12 @@ const userSchema = new Schema<IUser>(
       front: String,
       back: String,
     },
+    proofAddress: String,
+    fund: String,
   },
   {
     timestamps: true,
   },
 );
 
-export default model("User", userSchema);
+export default model('User', userSchema);

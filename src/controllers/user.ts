@@ -1,21 +1,21 @@
-import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import User from "../models/User";
-import { JWT_SECRET } from "../config";
+import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import User from '../models/User';
+import { JWT_SECRET } from '../config/key';
 
 //register user
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const { username, email, password, confirmPassword } = req.body;
     if (password !== confirmPassword)
-      return res.status(400).json({ message: "Password not match" });
+      return res.status(400).json({ message: 'Password not match' });
 
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
-    const wordsInName = username.split(" ");
+    const wordsInName = username.split(' ');
     let firstName = wordsInName[0];
-    let lastName = "";
+    let lastName = '';
     if (wordsInName.length) lastName = wordsInName[wordsInName.length - 1];
 
     const user = new User({
@@ -28,7 +28,7 @@ export const registerUser = async (req: Request, res: Response) => {
     const newUser = await user.save();
     res
       .status(201)
-      .json({ message: "User registered successfully", user: newUser });
+      .json({ message: 'User registered successfully', user: newUser });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -39,15 +39,15 @@ export const loginUser = async (req: Request, res: Response) => {
   const user = await User.findOne({
     $or: [{ email: req.body.email }, { username: req.body.email }],
   });
-  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user) return res.status(404).json({ message: 'User not found' });
 
   const isMatch = await bcrypt.compare(req.body.password, user.password);
-  if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+  if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
   const token = jwt.sign({ _id: user._id }, JWT_SECRET);
 
   res.json({
-    message: "Login successfully",
+    message: 'Login successfully',
     token,
     user: {
       _id: user._id,
@@ -59,13 +59,13 @@ export const loginUser = async (req: Request, res: Response) => {
 
 //get profile
 export const getProfile = async (req: Request, res: Response) => {
-  const user = await User.findById(req.user._id, "-password");
-  if (!user) return res.status(404).json({ message: "User not found" });
+  const user = await User.findById(req.user._id, '-password');
+  if (!user) return res.status(404).json({ message: 'User not found' });
 
   res.json(user);
 };
 
-//get profile
+//update profile
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const user = await User.findByIdAndUpdate(req.user._id, {
@@ -74,9 +74,9 @@ export const updateProfile = async (req: Request, res: Response) => {
         avatar: req.file?.filename,
       },
     });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json({ message: "User information updated" });
+    res.json({ message: 'User information updated' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -91,9 +91,9 @@ export const verifyProfile = async (req: Request, res: Response) => {
         ...req.body,
       },
     });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json({ message: "User information updated" });
+    res.json({ message: 'User information updated' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -104,12 +104,12 @@ export const ignoreUser = async (req: Request, res: Response) => {
   try {
     const { ignoredUser } = req.body;
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
     user.ignoredUsers.push({ user: ignoredUser });
 
     await user.save();
 
-    res.json({ message: "User ignored" });
+    res.json({ message: 'User ignored' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -119,10 +119,10 @@ export const ignoreUser = async (req: Request, res: Response) => {
 export const getIgnoreUsers = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user._id).populate(
-      "ignoredUsers.user",
-      "username",
+      'ignoredUsers.user',
+      'username',
     );
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user.ignoredUsers);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -134,7 +134,7 @@ export const removeIgnoredUser = async (req: Request, res: Response) => {
   try {
     const { ignoredUser } = req.params;
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.ignoredUsers = [
       ...user.ignoredUsers.filter(
@@ -142,7 +142,7 @@ export const removeIgnoredUser = async (req: Request, res: Response) => {
       ),
     ];
     await user.save();
-    res.json({ message: "User accepted" });
+    res.json({ message: 'User accepted' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -157,7 +157,7 @@ export const confirmDetails = async (req: Request, res: Response) => {
 
     res
       .status(201)
-      .json({ message: "User registered successfully", user: user });
+      .json({ message: 'User registered successfully', user: user });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -178,9 +178,9 @@ export const uploadIdentification = async (req: Request, res: Response) => {
         },
       },
     });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json({ message: "User information updated" });
+    res.json({ message: 'User information updated' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -189,9 +189,65 @@ export const uploadIdentification = async (req: Request, res: Response) => {
 //get identifications
 export const getIdentification = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id, "identificaions");
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user.ignoredUsers);
+    const user = await User.findById(req.user._id, 'identification');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user.identification);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//upload proof of address
+export const uploadAddress = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        ...req.body,
+        proofAddress: req.file?.filename,
+      },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ message: 'User information updated' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//get proof of address
+export const getProofOfAddress = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id, 'proofAddress');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//upload source of fund
+export const uploadFundSource = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        ...req.body,
+        fund: req.file?.filename,
+      },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ message: 'User information updated' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//get source of fund
+export const getFundSource = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id, 'fund');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

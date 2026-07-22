@@ -1,9 +1,9 @@
-import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import User from "../models/User";
-import { JWT_SECRET } from "../config";
-import Offer from "../models/Offer";
+import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import User from '../models/User';
+import { JWT_SECRET } from '../config/key';
+import Offer from '../models/Offer';
 
 //submit offer
 export const submitOffer = async (req: Request, res: Response) => {
@@ -12,7 +12,7 @@ export const submitOffer = async (req: Request, res: Response) => {
     const newOffer = new Offer({ expire, code, user: req.user._id });
     newOffer.user = req.user._id;
     await newOffer.save();
-    res.status(201).json({ message: "Offer set successfully" });
+    res.status(201).json({ message: 'Offer set successfully' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -24,7 +24,7 @@ export const getOffer = async (req: Request, res: Response) => {
     const offers = await Offer.find({
       user: req.user._id,
       expire: req.body.expire,
-    }).sort("-createdAt");
+    }).sort('-createdAt');
     res.status(201).json(offers[0]);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

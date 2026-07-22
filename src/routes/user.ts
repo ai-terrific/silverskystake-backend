@@ -1,26 +1,30 @@
-import express, { Request, Response } from "express";
-import multer from "multer";
+import express from 'express';
+import multer from 'multer';
 import {
   confirmDetails,
+  getFundSource,
   getIdentification,
   getIgnoreUsers,
   getProfile,
+  getProofOfAddress,
   ignoreUser,
   loginUser,
   registerUser,
   removeIgnoredUser,
   updateProfile,
+  uploadAddress,
+  uploadFundSource,
   uploadIdentification,
   verifyProfile,
-} from "../controllers";
-import authenticateToken from "../middlewares/auth";
-import path from "path";
+} from '../controllers';
+import authenticateToken from '../middlewares/auth';
+import path from 'path';
 
 const router = express.Router();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, 'uploads/');
   },
 
   filename: (req, file, cb) => {
@@ -33,58 +37,76 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get("/", (req: Request, res: Response) => {
-  res.json("Server works");
-});
+//get profile
+router.get('/get-profile', authenticateToken, getProfile);
+
+//get ignored users
+router.get('/ignore-user', authenticateToken, getIgnoreUsers);
+
+//get identifications
+router.get('/identification', authenticateToken, getIdentification);
+
+//get proof of address
+router.get('/address', authenticateToken, getProofOfAddress);
+
+//get source of fund
+router.get('/fund', authenticateToken, getFundSource);
 
 //register user
-router.post("/register", registerUser);
+router.post('/register', registerUser);
 
 //login user
-router.post("/login", loginUser);
-
-//get profile
-router.get("/getProfile", authenticateToken, getProfile);
+router.post('/login', loginUser);
 
 //update profile
 router.post(
-  "/updateProfile",
+  '/update-profile',
   authenticateToken,
-  upload.single("avatar"),
+  upload.single('avatar'),
   updateProfile,
 );
 
 //update profile
-router.post("/verifyProfile", authenticateToken, verifyProfile);
+router.post('/verify-profile', authenticateToken, verifyProfile);
 
 //ignore profile
-router.post("/ignoreUser", authenticateToken, ignoreUser);
-
-//get ignored users
-router.get("/ignoreUser", authenticateToken, getIgnoreUsers);
-
-//remove ignored users
-router.get(
-  "/ignoreUser/:ignoredUser/remove",
-  authenticateToken,
-  removeIgnoredUser,
-);
+router.post('/ignore-user', authenticateToken, ignoreUser);
 
 //confirm details
-router.post("/confirm", authenticateToken, confirmDetails);
+router.post('/confirm', authenticateToken, confirmDetails);
 
 //update profile
 router.post(
-  "/identification/upload",
+  '/identification',
   authenticateToken,
   upload.fields([
-    { name: "front", maxCount: 1 },
-    { name: "back", maxCount: 1 },
+    { name: 'front', maxCount: 1 },
+    { name: 'back', maxCount: 1 },
   ]),
   uploadIdentification,
 );
 
-//get identifications
-router.get("/identification", authenticateToken, getIdentification);
+//verify proof of address
+router.post(
+  '/address',
+  authenticateToken,
+  upload.single('proofAddress'),
+  uploadAddress,
+);
+
+//verify source of fund
+router.post(
+  '/fund',
+  authenticateToken,
+  upload.single('fundSource'),
+  uploadFundSource,
+);
+
+//remove ignored users
+router.delete(
+  '/ignore-user/:ignoredUser/remove',
+  authenticateToken,
+  removeIgnoredUser,
+);
 
 export default router;
