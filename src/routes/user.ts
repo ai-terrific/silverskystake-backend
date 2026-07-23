@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import {
   confirmDetails,
+  generateAuthentication,
   getFundSource,
   getIdentification,
   getIgnoreUsers,
@@ -15,6 +16,8 @@ import {
   uploadAddress,
   uploadFundSource,
   uploadIdentification,
+  validation2FA,
+  verify2FAAuthentication,
   verifyProfile,
 } from '../controllers';
 import authenticateToken from '../middlewares/auth';
@@ -108,5 +111,14 @@ router.delete(
   authenticateToken,
   removeIgnoredUser,
 );
+
+//2fa generation secret and qrcode
+router.post('/2fa/setup', authenticateToken, generateAuthentication);
+
+//2fa verification
+router.post('/2fa/verify', authenticateToken, verify2FAAuthentication);
+
+//login validation by 2FA
+router.post('/2fa/validation', validation2FA);
 
 export default router;

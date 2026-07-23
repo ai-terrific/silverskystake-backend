@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { generateSecret, generateURI, verify } from 'otplib';
+import qrcode from 'qrcode';
 import User from '../models/User';
 import { JWT_SECRET } from '../config/key';
 
@@ -44,6 +46,7 @@ export const loginUser = async (req: Request, res: Response) => {
   const isMatch = await bcrypt.compare(req.body.password, user.password);
   if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
+  if (user.twoFARequired) return res.json({ twoFARequired: true });
   const token = jwt.sign({ _id: user._id }, JWT_SECRET);
 
   res.json({
@@ -53,6 +56,7 @@ export const loginUser = async (req: Request, res: Response) => {
       _id: user._id,
       username: user.username,
       email: user.email,
+      twoFARequired: user.twoFARequired,
     },
   });
 };
@@ -248,6 +252,104 @@ export const getFundSource = async (req: Request, res: Response) => {
     const user = await User.findById(req.user._id, 'fund');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//2fa authentication
+export const generateAuthentication = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { enable } = req.body;
+    if (enable) {
+      const secret = generateSecret();
+      const otpauthUrl = generateURI({
+        issuer: user.username,
+        label: user.email,
+        secret,
+      });
+
+      const qrCodeImageUrl = await qrcode.toDataURL(otpauthUrl);
+      user.secret = secret;
+      await user.save();
+      res.json({ secret, qrCode: qrCodeImageUrl });
+    } else {
+      user.twoFARequired = false;
+      user.secret = '';
+      await user.save();
+      res.json({
+        message: 'Two factor authentication disabled',
+        secret: '',
+        qrCode: '',
+      });
+    }
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//2fa verification
+export const verify2FAAuthentication = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { code } = req.body;
+
+    const isValid = await verify({ secret: user.secret, token: code });
+
+    if (isValid.valid) {
+      user.twoFARequired = true;
+      await user.save();
+      return res.json({ isValid: true, message: 'Verified Successfully' });
+    } else
+      return res
+        .status(400)
+        .json({ isValid: false, message: 'Verified failed' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//2fa login-validation
+export const validation2FA = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findOne({
+      $or: [{ email: req.body.email }, { username: req.body.email }],
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!user.twoFARequired) {
+      return res
+        .status(400)
+        .json({ error: '2FA is not enabled for this account' });
+    }
+
+    const { code } = req.body;
+
+    const isValid = await verify({ secret: user.secret, token: code });
+
+    if (isValid.valid) {
+      const token = jwt.sign({ _id: user._id }, JWT_SECRET);
+
+      res.json({
+        message: 'Login successfully',
+        token,
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          twoFARequired: user.twoFARequired,
+          secret: user.secret,
+        },
+      });
+    } else
+      return res
+        .status(400)
+        .json({ isValid: false, message: 'Invalid verification code' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

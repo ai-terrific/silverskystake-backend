@@ -23,6 +23,8 @@ export interface IUser extends Document {
   };
   proofAddress: string;
   fund: string;
+  secret: string | Uint8Array<ArrayBufferLike>;
+  twoFARequired: Boolean;
 }
 
 const userSchema = new Schema<IUser>(
@@ -76,6 +78,11 @@ const userSchema = new Schema<IUser>(
     },
     proofAddress: String,
     fund: String,
+    secret: String,
+    twoFARequired: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
