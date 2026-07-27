@@ -1,4 +1,4 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document } from 'mongoose';
 
 export interface IOffer extends Document {
   user: Schema.Types.ObjectId;
@@ -23,4 +23,4 @@ const OfferSchema = new Schema<IOffer>(
   },
 );
 
-export default model("Offer", OfferSchema);
+export default model<IOffer>('Offer', OfferSchema);

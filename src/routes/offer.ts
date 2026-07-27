@@ -1,13 +1,13 @@
 import express from 'express';
 import { getOffer, submitOffer } from '../controllers';
-import authenticateToken from '../middlewares/auth';
+import requireAuth from '../middlewares/requireAuth';
 
 const router = express.Router();
 
 //register user
-router.post('/', authenticateToken, submitOffer);
+router.post('/', requireAuth, submitOffer);
 
 //get profile
-router.post('/get', authenticateToken, getOffer);
+router.post('/get', requireAuth, getOffer);
 
 export default router;

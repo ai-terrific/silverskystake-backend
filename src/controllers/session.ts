@@ -1,38 +1,53 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import User from '../models/User';
-import { JWT_SECRET } from '../config/key';
-import Session from '../models/Session';
+import mongoose from 'mongoose';
 
-//set session
-export const setSession = async (req: Request, res: Response) => {
-  try {
-    const newSession = new Session(req.body);
-    newSession.user = req.user._id;
-    await newSession.save();
-    res.status(201).json({ message: 'Session set successfully' });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
-};
+const getSessionsCollection = () => mongoose.connection.collection('sessions');
 
 //get sessions
 export const getSession = async (req: Request, res: Response) => {
   try {
-    const sessions = await Session.find({ user: req.user._id });
-    res.status(201).json(sessions);
+    const email = req.session?.email;
+
+    const sessionsCollection = getSessionsCollection();
+    if (!sessionsCollection) {
+      return res.status(500).json({ message: 'Session store not initialized' });
+    }
+
+    const sessions = await sessionsCollection
+      .find({ 'session.email': email })
+      .toArray()
+      .then((docs) =>
+        docs
+          .map((doc) => {
+            if (doc._id.toString() === req.sessionID) {
+              return { ...doc, status: 1 }; // Mark the current session as active
+            } else return { ...doc, status: 0 };
+          })
+          .sort((a, b) => b.status - a.status),
+      );
+
+    return res.status(200).json(sessions);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };
 
 //remove session
 export const removeSession = async (req: Request, res: Response) => {
   try {
-    await Session.findByIdAndDelete(req.params.sessionId);
-    res.status(201).json({ message: 'Session set successfully' });
+    const sessionsCollection = getSessionsCollection();
+    if (!sessionsCollection) {
+      return res.status(500).json({ message: 'Session store not initialized' });
+    }
+
+    const sessionId = req.params
+      .sessionId as unknown as mongoose.Types.ObjectId; // Replace with the actual session ID you want to remove
+
+    await sessionsCollection.findOneAndDelete({
+      _id: sessionId,
+    });
+    return res.status(200).json({ message: 'Session removed successfully' });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };

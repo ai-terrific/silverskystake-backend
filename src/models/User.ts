@@ -1,4 +1,4 @@
-import { Schema, Types, model, Document } from 'mongoose';
+import { Schema, Types, model, Document, Model } from 'mongoose';
 
 export interface IUser extends Document {
   firstName: string;
@@ -27,12 +27,15 @@ export interface IUser extends Document {
   twoFARequired: Boolean;
 }
 
-const userSchema = new Schema<IUser>(
+interface IUserModel extends Model<IUser> {
+  findByEmail(email: string): Promise<(IUser & Document) | null>;
+}
+
+const userSchema = new Schema<IUser, IUserModel>(
   {
     firstName: {
       type: String,
       required: true,
-      unique: true,
     },
     lastName: {
       type: String,
@@ -40,10 +43,13 @@ const userSchema = new Schema<IUser>(
     username: {
       type: String,
       required: true,
+      index: true,
+      unique: true,
     },
     email: {
       type: String,
       required: true,
+      index: true,
       unique: true,
     },
     password: {
@@ -89,4 +95,16 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-export default model('User', userSchema);
+userSchema.statics.findByEmail = async function (email: string) {
+  return this.findOne({ email });
+};
+
+userSchema.statics.findByEmailOrUsername = async function (
+  emailOrUsername: string,
+) {
+  return this.findOne({
+    $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
+  });
+};
+
+export default model<IUser, IUserModel>('User', userSchema);

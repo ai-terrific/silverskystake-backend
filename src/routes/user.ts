@@ -2,16 +2,19 @@ import express from 'express';
 import multer from 'multer';
 import {
   confirmDetails,
+  forgetPassword,
   generateAuthentication,
   getFundSource,
   getIdentification,
   getIgnoreUsers,
+  getIPAndGeoLocation,
   getProfile,
   getProofOfAddress,
   ignoreUser,
   loginUser,
   registerUser,
   removeIgnoredUser,
+  resetPassword,
   updateProfile,
   uploadAddress,
   uploadFundSource,
@@ -20,8 +23,8 @@ import {
   verify2FAAuthentication,
   verifyProfile,
 } from '../controllers';
-import authenticateToken from '../middlewares/auth';
 import path from 'path';
+import requireAuth from '../middlewares/requireAuth';
 
 const router = express.Router();
 
@@ -41,19 +44,19 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 //get profile
-router.get('/get-profile', authenticateToken, getProfile);
+router.get('/get-profile', requireAuth, getProfile);
 
 //get ignored users
-router.get('/ignore-user', authenticateToken, getIgnoreUsers);
+router.get('/ignore-user', requireAuth, getIgnoreUsers);
 
 //get identifications
-router.get('/identification', authenticateToken, getIdentification);
+router.get('/identification', requireAuth, getIdentification);
 
 //get proof of address
-router.get('/address', authenticateToken, getProofOfAddress);
+router.get('/address', requireAuth, getProofOfAddress);
 
 //get source of fund
-router.get('/fund', authenticateToken, getFundSource);
+router.get('/fund', requireAuth, getFundSource);
 
 //register user
 router.post('/register', registerUser);
@@ -64,24 +67,24 @@ router.post('/login', loginUser);
 //update profile
 router.post(
   '/update-profile',
-  authenticateToken,
+  requireAuth,
   upload.single('avatar'),
   updateProfile,
 );
 
 //update profile
-router.post('/verify-profile', authenticateToken, verifyProfile);
+router.post('/verify-profile', requireAuth, verifyProfile);
 
 //ignore profile
-router.post('/ignore-user', authenticateToken, ignoreUser);
+router.post('/ignore-user', requireAuth, ignoreUser);
 
 //confirm details
-router.post('/confirm', authenticateToken, confirmDetails);
+router.post('/confirm', requireAuth, confirmDetails);
 
 //update profile
 router.post(
   '/identification',
-  authenticateToken,
+  requireAuth,
   upload.fields([
     { name: 'front', maxCount: 1 },
     { name: 'back', maxCount: 1 },
@@ -92,7 +95,7 @@ router.post(
 //verify proof of address
 router.post(
   '/address',
-  authenticateToken,
+  requireAuth,
   upload.single('proofAddress'),
   uploadAddress,
 );
@@ -100,7 +103,7 @@ router.post(
 //verify source of fund
 router.post(
   '/fund',
-  authenticateToken,
+  requireAuth,
   upload.single('fundSource'),
   uploadFundSource,
 );
@@ -108,17 +111,25 @@ router.post(
 //remove ignored users
 router.delete(
   '/ignore-user/:ignoredUser/remove',
-  authenticateToken,
+  requireAuth,
   removeIgnoredUser,
 );
 
 //2fa generation secret and qrcode
-router.post('/2fa/setup', authenticateToken, generateAuthentication);
+router.post('/2fa/setup', requireAuth, generateAuthentication);
 
 //2fa verification
-router.post('/2fa/verify', authenticateToken, verify2FAAuthentication);
+router.post('/2fa/verify', requireAuth, verify2FAAuthentication);
 
 //login validation by 2FA
 router.post('/2fa/validation', validation2FA);
+
+//forgot password
+router.post('/forgot-password', forgetPassword);
+
+//reset passwrod
+router.post('/reset-password', resetPassword);
+
+router.get('/get', getIPAndGeoLocation);
 
 export default router;

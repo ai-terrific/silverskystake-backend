@@ -1,16 +1,13 @@
 import express, { Request, Response } from 'express';
-import authenticateToken from '../middlewares/auth';
-import { getSession, removeSession, setSession } from '../controllers';
+import { getSession, removeSession } from '../controllers';
+import requireAuth from '../middlewares/requireAuth';
 
 const router = express.Router();
 
 //get session
-router.get('/get', authenticateToken, getSession);
-
-//set session
-router.post('/set', authenticateToken, setSession);
+router.get('/', requireAuth, getSession);
 
 //remove session
-router.delete('/:sessionId/remove', authenticateToken, removeSession);
+router.delete('/:sessionId', requireAuth, removeSession);
 
 export default router;

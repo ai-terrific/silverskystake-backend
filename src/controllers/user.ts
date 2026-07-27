@@ -3,8 +3,22 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { generateSecret, generateURI, verify } from 'otplib';
 import qrcode from 'qrcode';
+import { BrevoClient } from '@getbrevo/brevo';
 import User from '../models/User';
-import { JWT_SECRET } from '../config/key';
+import { BREVO, JWT_SECRET, FRONTEND_URI, SECRET_KEY } from '../config/key';
+
+const geoip = require('geoip-lite');
+const UAParser = require('ua-parser-js');
+
+declare module 'express-session' {
+  interface SessionData {
+    email: string;
+    region: string;
+    city: string;
+    browser: string;
+    ip: string;
+  }
+}
 
 //register user
 export const registerUser = async (req: Request, res: Response) => {
@@ -38,46 +52,86 @@ export const registerUser = async (req: Request, res: Response) => {
 
 //login user by email or password
 export const loginUser = async (req: Request, res: Response) => {
-  const user = await User.findOne({
-    $or: [{ email: req.body.email }, { username: req.body.email }],
-  });
-  if (!user) return res.status(404).json({ message: 'User not found' });
+  try {
+    const user = await User.findOne({
+      $or: [{ email: req.body.email }, { username: req.body.email }],
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-  const isMatch = await bcrypt.compare(req.body.password, user.password);
-  if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    const isMatch = await bcrypt.compare(req.body.password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: 'Invalid credentials' });
 
-  if (user.twoFARequired) return res.json({ twoFARequired: true });
-  const token = jwt.sign({ _id: user._id }, JWT_SECRET);
+    if (user.twoFARequired) return res.json({ twoFARequired: true });
+    const token = jwt.sign({ _id: user._id }, JWT_SECRET);
 
-  res.json({
-    message: 'Login successfully',
-    token,
-    user: {
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      twoFARequired: user.twoFARequired,
-    },
-  });
+    let ip = (req.headers['x-forwarded-for'] ||
+      req.socket.remoteAddress) as string;
+
+    ip = ip.split('::ffff:')[1] || ip;
+
+    const geo = geoip.lookup(ip);
+
+    // if (!geo) {
+    //   return res
+    //     .status(400)
+    //     .json({ error: 'Location could not be determined.' });
+    // }
+
+    const ua = req.headers['user-agent'];
+
+    // Parse the string using ua-parser-js
+    const parser = new UAParser(ua);
+    const browser = parser.getBrowser();
+
+    req.session.regenerate((err) => {
+      req.session.email = user.email;
+      req.session.region = geo?.region || 'Unknown';
+      req.session.city = geo?.city || 'Unknown';
+      req.session.browser = browser.name || 'Unknown';
+      req.session.ip = ip as string;
+      req.session.save((error) => {
+        return res.json({
+          message: 'Login successfully',
+          token,
+          user: {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            twoFARequired: user.twoFARequired,
+          },
+        });
+      });
+    });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
+  }
 };
 
 //get profile
 export const getProfile = async (req: Request, res: Response) => {
-  const user = await User.findById(req.user._id, '-password');
-  if (!user) return res.status(404).json({ message: 'User not found' });
-
-  res.json(user);
+  try {
+    const user = await User.findOne({ email: req.session.email }, '-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    else return res.json(user);
+  } catch (err: any) {
+    console.log(err);
+    res.status(400).json({ message: err.message });
+  }
 };
 
 //update profile
 export const updateProfile = async (req: Request, res: Response) => {
   try {
-    const user = await User.findByIdAndUpdate(req.user._id, {
-      $set: {
-        ...req.body,
-        avatar: req.file?.filename,
+    const user = await User.findOneAndUpdate(
+      { email: req.session.email },
+      {
+        $set: {
+          ...req.body,
+          avatar: req.file?.filename,
+        },
       },
-    });
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'User information updated' });
@@ -89,12 +143,14 @@ export const updateProfile = async (req: Request, res: Response) => {
 //verify profile
 export const verifyProfile = async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, username } = req.body;
-    const user = await User.findByIdAndUpdate(req.user._id, {
-      $set: {
-        ...req.body,
+    const user = await User.findOneAndUpdate(
+      { email: req.session.email },
+      {
+        $set: {
+          ...req.body,
+        },
       },
-    });
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'User information updated' });
@@ -107,7 +163,7 @@ export const verifyProfile = async (req: Request, res: Response) => {
 export const ignoreUser = async (req: Request, res: Response) => {
   try {
     const { ignoredUser } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await User.findOne({ email: req.session.email });
     if (!user) return res.status(404).json({ message: 'User not found' });
     user.ignoredUsers.push({ user: ignoredUser });
 
@@ -122,7 +178,7 @@ export const ignoreUser = async (req: Request, res: Response) => {
 //get ignored users
 export const getIgnoreUsers = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id).populate(
+    const user = await User.findOne({ email: req.session.email }).populate(
       'ignoredUsers.user',
       'username',
     );
@@ -137,7 +193,7 @@ export const getIgnoreUsers = async (req: Request, res: Response) => {
 export const removeIgnoredUser = async (req: Request, res: Response) => {
   try {
     const { ignoredUser } = req.params;
-    const user = await User.findById(req.user._id);
+    const user = await User.findOne({ email: req.session.email });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.ignoredUsers = [
@@ -155,7 +211,7 @@ export const removeIgnoredUser = async (req: Request, res: Response) => {
 //confirm profile
 export const confirmDetails = async (req: Request, res: Response) => {
   try {
-    let user = await User.findById(req.user._id);
+    let user = await User.findOne({ email: req.session.email });
 
     user = { ...user, ...req.body };
 
@@ -174,14 +230,17 @@ export const uploadIdentification = async (req: Request, res: Response) => {
       front?: Express.Multer.File[];
       back?: Express.Multer.File[];
     };
-    const user = await User.findByIdAndUpdate(req.user._id, {
-      $set: {
-        identification: {
-          front: files.front?.[0].filename,
-          back: files.back?.[0].filename,
+    const user = await User.findOneAndUpdate(
+      { email: req.session.email },
+      {
+        $set: {
+          identification: {
+            front: files.front?.[0].filename,
+            back: files.back?.[0].filename,
+          },
         },
       },
-    });
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'User information updated' });
@@ -193,7 +252,10 @@ export const uploadIdentification = async (req: Request, res: Response) => {
 //get identifications
 export const getIdentification = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id, 'identification');
+    const user = await User.findOne(
+      { email: req.session.email },
+      'identification',
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user.identification);
   } catch (err: any) {
@@ -204,12 +266,15 @@ export const getIdentification = async (req: Request, res: Response) => {
 //upload proof of address
 export const uploadAddress = async (req: Request, res: Response) => {
   try {
-    const user = await User.findByIdAndUpdate(req.user._id, {
-      $set: {
-        ...req.body,
-        proofAddress: req.file?.filename,
+    const user = await User.findOneAndUpdate(
+      { email: req.session.email },
+      {
+        $set: {
+          ...req.body,
+          proofAddress: req.file?.filename,
+        },
       },
-    });
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'User information updated' });
@@ -221,7 +286,10 @@ export const uploadAddress = async (req: Request, res: Response) => {
 //get proof of address
 export const getProofOfAddress = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id, 'proofAddress');
+    const user = await User.findOne(
+      { email: req.session.email },
+      'proofAddress',
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err: any) {
@@ -232,12 +300,15 @@ export const getProofOfAddress = async (req: Request, res: Response) => {
 //upload source of fund
 export const uploadFundSource = async (req: Request, res: Response) => {
   try {
-    const user = await User.findByIdAndUpdate(req.user._id, {
-      $set: {
-        ...req.body,
-        fund: req.file?.filename,
+    const user = await User.findOneAndUpdate(
+      { email: req.session.email },
+      {
+        $set: {
+          ...req.body,
+          fund: req.file?.filename,
+        },
       },
-    });
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ message: 'User information updated' });
@@ -249,7 +320,7 @@ export const uploadFundSource = async (req: Request, res: Response) => {
 //get source of fund
 export const getFundSource = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id, 'fund');
+    const user = await User.findOne({ email: req.session.email }, 'fund');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err: any) {
@@ -260,7 +331,7 @@ export const getFundSource = async (req: Request, res: Response) => {
 //2fa authentication
 export const generateAuthentication = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findOne({ email: req.session.email });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const { enable } = req.body;
@@ -294,7 +365,7 @@ export const generateAuthentication = async (req: Request, res: Response) => {
 //2fa verification
 export const verify2FAAuthentication = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findOne({ email: req.session.email });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const { code } = req.body;
@@ -353,4 +424,64 @@ export const validation2FA = async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
+};
+
+//forget password link
+export const forgetPassword = async (req: Request, res: Response) => {
+  try {
+    let { email } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user)
+      return res.status(200).json({
+        message:
+          'You will receive an email with instructions to reset your password if an account exists for this email address.',
+      });
+
+    const token = jwt.sign({ email: user.email }, JWT_SECRET, {
+      expiresIn: '15min',
+    });
+
+    const brevo = new BrevoClient({ apiKey: BREVO.key });
+
+    const result = await brevo.transactionalEmails.sendTransacEmail({
+      subject: 'Hello from Brevo!',
+      htmlContent: `<html><body><a href=${FRONTEND_URI}/${token}/reset-password target='_blank'>Click here to get a new password rest link.</a><p>If you don't use this link within 30 minutes, it will expire.</p></body></html>`,
+      sender: { name: BREVO.host.name, email: BREVO.host.email },
+      to: [{ email: email }],
+    });
+
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//reset password
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+    const decoded = jwt.verify(token, JWT_SECRET) as { email: string };
+    console.log(decoded);
+    const user = await User.findOne({ email: decoded.email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (password !== confirmPassword)
+      return res.status(400).json({ message: 'Password not match' });
+
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    user.password = hashedPassword;
+
+    await user.save();
+    res.status(201).json({ message: 'Password changed successfully' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+//get ip and geo location
+export const getIPAndGeoLocation = async (req: Request, res: Response) => {
+  const ip = req.ip;
+  const geo = geoip.lookup(ip as string);
+
+  res.json({ ip, geo });
 };
