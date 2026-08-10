@@ -4,6 +4,7 @@ import {
   confirmDetails,
   forgetPassword,
   generateAuthentication,
+  getAuthentication,
   getFundSource,
   getIdentification,
   getIgnoreUsers,
@@ -117,6 +118,9 @@ router.delete(
 
 //2fa generation secret and qrcode
 router.post('/2fa/setup', requireAuth, generateAuthentication);
+
+//get 2fa authentication secret and qrcode
+router.get('/2fa', requireAuth, getAuthentication);
 
 //2fa verification
 router.post('/2fa/verify', requireAuth, verify2FAAuthentication);

@@ -54,7 +54,10 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const user = await User.findOne({
-      $or: [{ email: req.body.email }, { username: req.body.email }],
+      $or: [
+        { email: req.body.emailOrUsername },
+        { username: req.body.emailOrUsername },
+      ],
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -362,6 +365,25 @@ export const generateAuthentication = async (req: Request, res: Response) => {
   }
 };
 
+//get 2fa authentication
+export const getAuthentication = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findOne({ email: req.session.email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const otpauthUrl = generateURI({
+      issuer: user.username,
+      label: user.email,
+      secret: user.secret as string,
+    });
+
+    const qrCodeImageUrl = await qrcode.toDataURL(otpauthUrl);
+    res.json({ secret: user.secret, qrCode: qrCodeImageUrl });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 //2fa verification
 export const verify2FAAuthentication = async (req: Request, res: Response) => {
   try {
@@ -371,6 +393,8 @@ export const verify2FAAuthentication = async (req: Request, res: Response) => {
     const { code } = req.body;
 
     const isValid = await verify({ secret: user.secret, token: code });
+    console.log({ secret: user.secret, token: code });
+    console.log(isValid);
 
     if (isValid.valid) {
       user.twoFARequired = true;
@@ -402,6 +426,9 @@ export const validation2FA = async (req: Request, res: Response) => {
     const { code } = req.body;
 
     const isValid = await verify({ secret: user.secret, token: code });
+
+    console.log({ secret: user.secret, token: code });
+    console.log(isValid);
 
     if (isValid.valid) {
       const token = jwt.sign({ _id: user._id }, JWT_SECRET);
